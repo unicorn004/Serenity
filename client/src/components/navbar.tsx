@@ -65,6 +65,12 @@ export default function Navbar() {
             >
               Crisis Help
             </Link>
+            <Link
+              to="/mindfulness"
+              className="text-md font-large text-gray-600 hover:text-indigo-600"
+            >
+              Practice Mindfulness
+            </Link>
           </nav>
 
           <div className="flex items-center gap-4">

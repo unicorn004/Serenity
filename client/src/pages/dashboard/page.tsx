@@ -1,6 +1,6 @@
 import { useState } from "react"
 import { Calendar, ChevronLeft, ChevronRight, Award, TrendingUp, Activity, BarChart3 } from "lucide-react"
-
+import { useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Progress } from "@/components/ui/progress"
@@ -9,11 +9,36 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
 import MoodChart from "@/components/dashboard/mood-chart"
 import ChallengeCard from "@/components/dashboard/challenge-card"
+import api from '../../api.js'
+import { useNavigate } from "react-router-dom"
 
 export default function DashboardPage() {
+  const navigate = useNavigate();
   const [currentDate, setCurrentDate] = useState(new Date())
+  const [profileData, setProfileData] = useState(null)
+  const [loading, setLoading] = useState(true)
 
-  const formatDate = (date: Date) => {
+  useEffect(() => {
+    const fetchProfile = async () => {
+      try {
+        const response = await api.get("/profile/get/");
+        if (response.status === 200) {
+          setProfileData(response.data);
+          setLoading(false);
+        }
+      } catch (error) {
+        if (error.response && error.response.status === 404) {
+          navigate("/profile-form");
+        } else {
+          console.error("Error fetching profile:", error);
+        }
+      }
+    };
+
+    fetchProfile();
+  }, [navigate]);
+
+  const formatDate = (date) => {
     return date.toLocaleDateString("en-US", {
       weekday: "long",
       month: "long",
@@ -35,6 +60,70 @@ export default function DashboardPage() {
 
   const goToToday = () => {
     setCurrentDate(new Date())
+  }
+
+  // Calculate membership duration
+  const getMemberSince = () => {
+    if (!profileData || !profileData.last_login) return "Member since June 2023";
+    
+    const loginDate = new Date(profileData.last_login);
+    const month = loginDate.toLocaleString('default', { month: 'long' });
+    const year = loginDate.getFullYear();
+    return `Member since ${month} ${year}`;
+  }
+
+  // Get initials for avatar fallback
+  const getInitials = () => {
+    return "UR"; // User initials (default to "User" since we don't have a name)
+  }
+
+  // Get updated habits with actual streak data
+  const getUpdatedHabits = () => {
+    return [
+      {
+        name: "Morning Meditation",
+        description: "10 minutes of mindfulness",
+        icon: <Activity className="h-5 w-5" />,
+        streak: profileData?.morning_meditation_streak || 0,
+        completed: profileData?.morning_meditation_last_performed ? 
+          new Date(profileData.morning_meditation_last_performed).toDateString() === new Date().toDateString() : 
+          false,
+      },
+      {
+        name: "Gratitude Journal",
+        description: "Write 3 things you're grateful for",
+        icon: <Calendar className="h-5 w-5" />,
+        streak: profileData?.gratitude_journal_streak || 0,
+        completed: profileData?.gratitude_journal_last_performed ? 
+          new Date(profileData.gratitude_journal_last_performed).toDateString() === new Date().toDateString() : 
+          false,
+      },
+      {
+        name: "Evening Reflection",
+        description: "Review your day and emotions",
+        icon: <Award className="h-5 w-5" />,
+        streak: profileData?.evening_reflection_streak || 0,
+        completed: profileData?.evening_reflection_last_performed ? 
+          new Date(profileData.evening_reflection_last_performed).toDateString() === new Date().toDateString() : 
+          false,
+      },
+    ]
+  }
+
+  // Format level name
+  const formatLevel = (level) => {
+    if (!level) return "Mindfulness Master";
+    return level.split('_').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ');
+  }
+
+  // Format badge name
+  const formatBadge = (badge) => {
+    if (!badge) return "First Step";
+    return badge.split('_').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ');
+  }
+
+  if (loading) {
+    return <div className="flex justify-center items-center h-screen">Loading...</div>;
   }
 
   return (
@@ -62,7 +151,7 @@ export default function DashboardPage() {
       <div className="grid gap-6 md:grid-cols-3">
         <div className="md:col-span-2">
           <Tabs defaultValue="overview">
-            <TabsList className="grid w-full grid-cols-3">
+            <TabsList className="grid w-full grid-cols-3 min-h-17 py-3">
               <TabsTrigger value="overview">Overview</TabsTrigger>
               <TabsTrigger value="challenges">Challenges</TabsTrigger>
               <TabsTrigger value="achievements">Achievements</TabsTrigger>
@@ -80,7 +169,7 @@ export default function DashboardPage() {
                   </CardHeader>
                   <CardContent>
                     <div className="h-[200px] w-full">
-                      <MoodChart />
+                      <MoodChart moodData={profileData?.daily_mood || []} />
                     </div>
                   </CardContent>
                 </Card>
@@ -97,7 +186,7 @@ export default function DashboardPage() {
                     <div className="flex flex-col items-center justify-center space-y-6 py-4">
                       <div className="relative flex h-36 w-36 items-center justify-center rounded-full border-8 border-primary/20">
                         <div className="text-center">
-                          <span className="text-4xl font-bold">78</span>
+                          <span className="text-4xl font-bold">{profileData?.wellness_score || 50}</span>
                           <span className="text-sm text-muted-foreground">/100</span>
                         </div>
                         <svg className="absolute -rotate-90" width="150" height="150" viewBox="0 0 150 150">
@@ -109,7 +198,7 @@ export default function DashboardPage() {
                             stroke="currentColor"
                             strokeWidth="12"
                             strokeDasharray="376.8"
-                            strokeDashoffset="82.9"
+                            strokeDashoffset={376.8 - (376.8 * (profileData?.wellness_score || 50) / 100)}
                             className="text-primary"
                           />
                         </svg>
@@ -118,7 +207,7 @@ export default function DashboardPage() {
                       <div className="grid w-full grid-cols-2 gap-4">
                         <div className="space-y-1">
                           <p className="text-xs text-muted-foreground">Sleep Quality</p>
-                          <Progress value={65} className="h-2" />
+                          <Progress value={profileData?.sleep_quality * 10 || 50} className="h-2" />
                         </div>
                         <div className="space-y-1">
                           <p className="text-xs text-muted-foreground">Stress Level</p>
@@ -126,11 +215,11 @@ export default function DashboardPage() {
                         </div>
                         <div className="space-y-1">
                           <p className="text-xs text-muted-foreground">Activity</p>
-                          <Progress value={85} className="h-2" />
+                          <Progress value={profileData?.activity_level * 10 || 50} className="h-2" />
                         </div>
                         <div className="space-y-1">
                           <p className="text-xs text-muted-foreground">Mindfulness</p>
-                          <Progress value={70} className="h-2" />
+                          <Progress value={profileData?.mindfulness_level * 10 || 50} className="h-2" />
                         </div>
                       </div>
                     </div>
@@ -148,7 +237,7 @@ export default function DashboardPage() {
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-4">
-                    {habits.map((habit) => (
+                    {getUpdatedHabits().map((habit) => (
                       <div key={habit.name} className="flex items-center justify-between">
                         <div className="flex items-center gap-3">
                           <div
@@ -230,14 +319,14 @@ export default function DashboardPage() {
               <div className="flex flex-col items-center">
                 <Avatar className="mb-4 h-24 w-24 border-4 border-primary/20">
                   <AvatarImage src="/placeholder.svg?height=96&width=96" />
-                  <AvatarFallback className="text-2xl">JD</AvatarFallback>
+                  <AvatarFallback className="text-2xl">{getInitials()}</AvatarFallback>
                 </Avatar>
-                <h2 className="mb-1 text-xl font-bold">Jane Doe</h2>
-                <p className="mb-4 text-sm text-muted-foreground">Member since June 2023</p>
+                <h2 className="mb-1 text-xl font-bold">User</h2>
+                <p className="mb-4 text-sm text-muted-foreground">{getMemberSince()}</p>
 
                 <div className="mb-6 grid w-full grid-cols-3 gap-2 text-center">
                   <div className="rounded-lg bg-primary/5 p-2">
-                    <p className="text-lg font-bold">42</p>
+                    <p className="text-lg font-bold">{profileData?.streak || 2}</p>
                     <p className="text-xs text-muted-foreground">Days</p>
                   </div>
                   <div className="rounded-lg bg-primary/5 p-2">
@@ -259,10 +348,10 @@ export default function DashboardPage() {
                       </div>
                       <div className="flex-1">
                         <div className="flex items-center justify-between">
-                          <p className="text-sm font-medium">Mindfulness Master</p>
-                          <p className="text-xs text-muted-foreground">Level 4</p>
+                          <p className="text-sm font-medium">{formatLevel(profileData?.current_level)}</p>
+                          <p className="text-xs text-muted-foreground">Level 1</p>
                         </div>
-                        <Progress value={65} className="h-2" />
+                        <Progress value={25} className="h-2" />
                       </div>
                     </div>
                   </div>
@@ -270,7 +359,13 @@ export default function DashboardPage() {
                   <div>
                     <h3 className="mb-2 text-sm font-medium">Recent Badges</h3>
                     <div className="flex justify-between">
-                      {recentBadges.map((badge, index) => (
+                      <div className="flex flex-col items-center">
+                        <div className="mb-1 flex h-10 w-10 items-center justify-center rounded-full bg-primary/20 text-primary">
+                          <Award className="h-5 w-5" />
+                        </div>
+                        <p className="text-xs">{formatBadge(profileData?.recent_badge)}</p>
+                      </div>
+                      {recentBadges.slice(1, 3).map((badge, index) => (
                         <div key={index} className="flex flex-col items-center">
                           <div className="mb-1 flex h-10 w-10 items-center justify-center rounded-full bg-primary/20 text-primary">
                             {badge.icon}
@@ -318,30 +413,6 @@ export default function DashboardPage() {
   )
 }
 
-const habits = [
-  {
-    name: "Morning Meditation",
-    description: "10 minutes of mindfulness",
-    icon: <Activity className="h-5 w-5" />,
-    streak: 12,
-    completed: true,
-  },
-  {
-    name: "Gratitude Journal",
-    description: "Write 3 things you're grateful for",
-    icon: <Calendar className="h-5 w-5" />,
-    streak: 8,
-    completed: true,
-  },
-  {
-    name: "Evening Reflection",
-    description: "Review your day and emotions",
-    icon: <Award className="h-5 w-5" />,
-    streak: 5,
-    completed: false,
-  },
-]
-
 const challenges = [
   {
     title: "7-Day Mindfulness",
@@ -384,13 +455,13 @@ const achievements = [
     name: "Consistency Champion",
     description: "Complete daily check-ins for 7 days straight",
     icon: <Calendar className="h-8 w-8" />,
-    unlocked: true,
+    unlocked: false,
   },
   {
     name: "Meditation Master",
     description: "Complete 10 meditation sessions",
     icon: <Activity className="h-8 w-8" />,
-    unlocked: true,
+    unlocked: false,
   },
   {
     name: "Journaling Journey",
@@ -441,4 +512,3 @@ const upcomingSessions = [
     icon: <Activity className="h-5 w-5" />,
   },
 ]
-
