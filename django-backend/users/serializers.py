@@ -10,7 +10,7 @@ class UserSerializer(serializers.ModelSerializer):
     role = serializers.CharField(source='profile.role', read_only=True)
     class Meta:
         model = User
-        fields = ['id', 'username', 'email', 'streak', 'role']
+        exclude = ['id']
 
 class RegisterSerializer(serializers.ModelSerializer):
     class Meta:
@@ -25,7 +25,6 @@ class RegisterSerializer(serializers.ModelSerializer):
 class LoginSerializer(serializers.Serializer):
     email = serializers.EmailField()
     password = serializers.CharField(write_only=True)
-
     def validate(self, data):
         email = data.get('email', None)
         password = data.get('password', None)

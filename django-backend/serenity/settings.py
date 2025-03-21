@@ -15,6 +15,8 @@ import os
 from dotenv import load_dotenv
 from urllib.parse import urlparse
 from datetime import timedelta
+from django.urls import path, re_path
+
 
 load_dotenv()
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
@@ -180,7 +182,36 @@ STATIC_URL = 'static/'
 # https://docs.djangoproject.com/en/5.1/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
-CORS_ALLOW_ALL_ORIGINS = True
+CORS_ALLOWED_ORIGINS = [
+    "http://localhost:5173",  # Your frontend development server
+    "http://127.0.0.1:5173",
+]
+
+CORS_ALLOW_METHODS = [
+    "DELETE",
+    "GET",
+    "OPTIONS",
+    "PATCH",
+    "POST",
+    "PUT",
+]
+
+CORS_ALLOW_HEADERS = [
+    "accept",
+    "accept-encoding",
+    "authorization",
+    "content-type",
+    "dnt",
+    "origin",
+    "user-agent",
+    "x-csrftoken",
+    "x-requested-with",
+]
+
+# In your settings.py
+CSRF_EXEMPT_URLS = [
+    re_path(r'^api/', path),  # Exempts all API endpoints
+]
 
 # JWT used for auth - copied from jwt website
 SIMPLE_JWT = {
